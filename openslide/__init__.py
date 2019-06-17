@@ -222,6 +222,17 @@ class OpenSlide(AbstractSlide):
         return lowlevel.read_region(self._osr, location[0], location[1],
                 level, size[0], size[1])
 
+    def native_tile(self, location, level):
+        """Return a PIL.Image containing the tile of the region.
+
+        location: (x, y) tuple giving the top left pixel in the level 0
+                  reference frame.
+        level:    the level number.
+
+        Unlike in the C interface, the image data returned by this
+        function is not premultiplied."""
+        return lowlevel.native_tile(self._osr, location[0], location[1],
+                level)
 
 class _OpenSlideMap(Mapping):
     def __init__(self, osr):

@@ -58,11 +58,14 @@ else:
     _lib = cdll.LoadLibrary('libopenslide.so.0')
 
 try:
+    import io
     from . import _convert
     def _load_image(buf, size):
         '''buf must be a mutable buffer.'''
         _convert.argb2rgba(buf)
         return PIL.Image.frombuffer('RGBA', size, buf, 'raw', 'RGBA', 0, 1)
+    def _native_image(buf):
+        return PIL.Image.open(io.BytesIO(buf))
 except ImportError:
     def _load_image(buf, size):
         '''buf must be a buffer.'''
@@ -258,6 +261,37 @@ def read_region(slide, x, y, level, w, h):
     buf = (w * h * c_uint32)()
     _read_region(slide, buf, x, y, level, w, h)
     return _load_image(buf, (w, h))
+
+_native_tile_data = _func('openslide_get_native_tile_data', None,
+        [_OpenSlide, c_int64, c_int64, POINTER(c_int64), POINTER(c_int64),
+            POINTER(c_int64), c_int32])
+
+def native_tile_data(slide, x, y, level):
+    w, h = get_level_dimensions(slide, level)
+    if x < 0 or y < 0 or x >= h or y >= w:
+        x = x % h
+        y = y % w
+    sz, aligned_x, aligned_y = c_int64(), c_int64(), c_int64()
+    _native_tile_data(slide, x, y, byref(sz), byref(aligned_x),
+            byref(aligned_y), level)
+    return sz.value, aligned_x.value, aligned_y.value
+
+_native_tile = _func('openslide_native_tile', None,
+        [_OpenSlide, POINTER(c_uint8), c_int64, c_int64, c_int32])
+
+def native_tile(slide, x, y, level):
+    w, h = get_level_dimensions(slide, level)
+    if x < 0 or y < 0 or x >= h or y >= w:
+        x = x % h
+        y = y % w
+    if w == 0 or h == 0:
+        # PIL.Image.frombuffer() would raise an exception
+        return PIL.Image.new('RGBA', (w, h))
+    # lets get the tile size data and size
+    sz, aligned_x, aligned_y = native_tile_data(slide, x, y, level)
+    buf = (sz * c_uint8)()
+    _native_tile(slide, buf, aligned_x, aligned_y, level)
+    return _native_image(buf)
 
 get_error = _func('openslide_get_error', c_char_p, [_OpenSlide], _check_string)
 
