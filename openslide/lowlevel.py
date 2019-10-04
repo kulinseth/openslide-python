@@ -277,7 +277,7 @@ def native_tile_data(slide, x, y, level):
     return sz.value, aligned_x.value, aligned_y.value
 
 _native_tile = _func('openslide_native_tile', None,
-        [_OpenSlide, POINTER(c_uint8), c_int64, c_int64, c_int32])
+        [_OpenSlide, POINTER(c_uint8), c_int64, c_int64, c_int64, c_int32])
 
 def native_tile(slide, x, y, level):
     w, h = get_level_dimensions(slide, level)
@@ -290,7 +290,7 @@ def native_tile(slide, x, y, level):
     # lets get the tile size data and size
     sz, aligned_x, aligned_y = native_tile_data(slide, x, y, level)
     buf = (sz * c_uint8)()
-    _native_tile(slide, buf, aligned_x, aligned_y, level)
+    _native_tile(slide, buf, sz, aligned_x, aligned_y, level)
     return _native_image(buf)
 
 get_error = _func('openslide_get_error', c_char_p, [_OpenSlide], _check_string)
